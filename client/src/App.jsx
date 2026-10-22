@@ -55,7 +55,13 @@ export function App() {
   const { lang, toggleLanguage, t } = useLanguage();
 
   // Modal / Drawer states
-  const [bootCompleted, setBootCompleted] = useState(false);
+  const [bootCompleted, setBootCompleted] = useState(() => {
+    try {
+      return sessionStorage.getItem('toufikul_booted') === 'true';
+    } catch (e) {
+      return false;
+    }
+  });
   const [isPhotoStudioOpen, setIsPhotoStudioOpen] = useState(false);
   const [isThemeSettingsOpen, setIsThemeSettingsOpen] = useState(false);
   const [isPaletteOpen, setIsPaletteOpen] = useState(false);

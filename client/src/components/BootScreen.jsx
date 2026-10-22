@@ -1,28 +1,35 @@
-import React, { useState, useEffect } from 'react';
-import { Terminal, CheckCircle2, ShieldAlert } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Terminal } from 'lucide-react';
 
 export function BootScreen({ onComplete }) {
   const [logs, setLogs] = useState([
     'INITIALIZING SYSTEM SUBSYSTEMS...',
   ]);
-  const [progress, setProgress] = useState(15);
+  const [progress, setProgress] = useState(20);
   const [isSkipped, setIsSkipped] = useState(false);
+  const hasInitialized = useRef(false);
 
   useEffect(() => {
-    // Check if user prefers reduced motion
-    const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    const hasBooted = sessionStorage.getItem('toufikul_booted');
+    if (hasInitialized.current) return;
+    hasInitialized.current = true;
 
-    if (prefersReducedMotion || hasBooted) {
-      onComplete();
+    // Check if user prefers reduced motion or already booted in this session
+    const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    let alreadyBooted = false;
+    try {
+      alreadyBooted = sessionStorage.getItem('toufikul_booted') === 'true';
+    } catch (e) {}
+
+    if (prefersReducedMotion || alreadyBooted) {
+      if (onComplete) onComplete();
       return;
     }
 
     const steps = [
-      { msg: 'MOUNTING V8 RUNTIME & REACT 18 FIBER...', pct: 35, delay: 250 },
-      { msg: 'ESTABLISHING TELEMETRY LINK TO DHAKA NODE (23.8103° N, 90.4125° E)...', pct: 60, delay: 550 },
-      { msg: 'SERVICES VERIFIED: REACT, NODE, EXPRESS, MONGODB [HEALTHY]', pct: 85, delay: 900 },
-      { msg: 'OPERATOR PROFILE TOUFIKUL ISLAM: ALL SYSTEMS OPERATIONAL.', pct: 100, delay: 1300 },
+      { msg: 'MOUNTING V8 RUNTIME & REACT 18 FIBER...', pct: 45, delay: 180 },
+      { msg: 'ESTABLISHING TELEMETRY LINK TO DHAKA NODE (23.8103° N, 90.4125° E)...', pct: 70, delay: 420 },
+      { msg: 'SERVICES VERIFIED: REACT, NODE, EXPRESS, MONGODB [HEALTHY]', pct: 90, delay: 680 },
+      { msg: 'OPERATOR PROFILE TOUFIKUL ISLAM: ALL SYSTEMS OPERATIONAL.', pct: 100, delay: 920 },
     ];
 
     const timers = steps.map((step) =>
@@ -33,20 +40,37 @@ export function BootScreen({ onComplete }) {
     );
 
     const finishTimer = setTimeout(() => {
-      sessionStorage.setItem('toufikul_booted', 'true');
-      onComplete();
-    }, 1700);
+      try {
+        sessionStorage.setItem('toufikul_booted', 'true');
+      } catch (e) {}
+      if (onComplete) onComplete();
+    }, 1150);
+
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        try {
+          sessionStorage.setItem('toufikul_booted', 'true');
+        } catch (err) {}
+        setIsSkipped(true);
+        if (onComplete) onComplete();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
 
     return () => {
       timers.forEach(clearTimeout);
       clearTimeout(finishTimer);
+      window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [onComplete]);
+  }, []); // Run once on mount!
 
   const handleSkip = () => {
-    sessionStorage.setItem('toufikul_booted', 'true');
+    try {
+      sessionStorage.setItem('toufikul_booted', 'true');
+    } catch (e) {}
     setIsSkipped(true);
-    onComplete();
+    if (onComplete) onComplete();
   };
 
   if (isSkipped) return null;
@@ -66,7 +90,7 @@ export function BootScreen({ onComplete }) {
         </div>
         <button
           onClick={handleSkip}
-          className="text-xs px-2.5 py-1 border border-line bg-surface hover:border-accent text-muted hover:text-fg transition-colors"
+          className="text-xs px-2.5 py-1 border border-line bg-surface hover:border-accent text-muted hover:text-fg transition-colors cursor-pointer"
         >
           SKIP BOOT [ESC]
         </button>
@@ -97,7 +121,7 @@ export function BootScreen({ onComplete }) {
             </div>
             <div className="w-full bg-surface-2 h-1.5 overflow-hidden">
               <div
-                className="bg-accent h-full transition-all duration-300 ease-out"
+                className="bg-accent h-full transition-all duration-200 ease-out"
                 style={{ width: `${progress}%` }}
               />
             </div>

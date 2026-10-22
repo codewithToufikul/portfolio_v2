@@ -1,111 +1,98 @@
-## 🌟 Deploying Both Frontend & Backend on Vercel (All-in-One, 100% Free)
+# 🚀 Deployment Guide — Toufikul Islam Portfolio
 
-You can deploy **BOTH the React Client and Express Backend on Vercel together**:
-- **Zero Cold Start / No Sleep Time**: Unlike Render free tier, Vercel Serverless Functions execute instantly (< 200ms).
-- **Single Deployment & Domain**: Everything runs under `toufikuls-portfolio.vercel.app` (both UI and `/api/contact`).
-- **100% Free Forever**: Within Vercel's generous free tier limits.
+## ✅ Deploy Everything on Vercel (Free — Recommended)
 
-### How to Deploy on Vercel in 3 Steps:
+This project is configured for **full-stack deployment on Vercel** (client + server as serverless function).
 
-1. **Push your code to GitHub**:
-   ```bash
-   git add .
-   git commit -m "feat: complete fullstack portfolio ready for Vercel"
-   git push origin main
-   ```
+### Step 1: Push to GitHub
 
-2. **Import in Vercel**:
-   - Go to [vercel.com](https://vercel.com) and click **Add New... → Project**.
-   - Select your repository `toufikul-portfolio2.0`.
-   - **Root Directory**: Leave it as default (`./` - project root).
-   - **Build Command**: `npm run build` (automatic).
-   - **Output Directory**: `client/dist` (automatic via `vercel.json`).
+```bash
+git add .
+git commit -m "feat: complete fullstack portfolio v2.0"
+git push origin main
+```
 
-3. **Add Environment Variables in Vercel Dashboard**:
-   Go to **Project Settings → Environment Variables** and add:
-   - `SMTP_HOST`: `smtp.gmail.com`
-   - `SMTP_PORT`: `587`
-   - `SMTP_USER`: `imranmeg2356@gmail.com`
-   - `SMTP_PASS`: `iqroqjplfpumhlat`
-   - `NOTIFICATION_EMAIL`: `imranmeg2356@gmail.com`
-   - `MONGODB_URI`: `mongodb+srv://...` (your free MongoDB Atlas URI, or leave empty to use in-memory mode)
+### Step 2: Import on Vercel
 
-4. Click **Deploy**! Your entire full-stack portfolio will be live in ~60 seconds.
+1. Go to [vercel.com](https://vercel.com) → **Add New... → Project**
+2. Select your repository `toufikul-portfolio2.0`
+3. **Root Directory**: Leave as default (`./`)
+4. **Framework Preset**: Other
+5. **Build Command**: `npm run build` ← auto-detected from `vercel.json`
+6. **Output Directory**: `client/dist` ← auto-detected from `vercel.json`
+7. Click **Continue**
 
----
+### Step 3: Add Environment Variables
 
-## 1. Database Setup: MongoDB Atlas (Free Tier)
+In **Vercel Dashboard → Project → Settings → Environment Variables**, add:
 
-1. Sign in to [MongoDB Atlas](https://www.mongodb.com/cloud/atlas).
-2. Create a free **M0 Cluster** in the closest region (e.g. `ap-southeast-1` Singapore or `ap-south-1` Mumbai).
-3. Under **Database Access**, create a database user:
-   - Username: `toufikul_admin`
-   - Password: `<GENERATE_STRONG_PASSWORD>`
-4. Under **Network Access**, click **Add IP Address** and choose **Allow Access from Anywhere** (`0.0.0.0/0`).
-5. Click **Connect** → **Drivers** (Node.js) and copy your connection string:
-   ```
-   mongodb+srv://toufikul_admin:<PASSWORD>@cluster0.xxxxx.mongodb.net/toufikul-portfolio?retryWrites=true&w=majority
-   ```
+| Variable | Value |
+|---|---|
+| `NODE_ENV` | `production` |
+| `MONGODB_URI` | `mongodb+srv://...your atlas URI...` |
+| `SMTP_HOST` | `smtp.gmail.com` |
+| `SMTP_PORT` | `587` |
+| `SMTP_USER` | `imranmeg2356@gmail.com` |
+| `SMTP_PASS` | `iqroqjplfpumhlat` (no spaces!) |
+| `NOTIFICATION_EMAIL` | `imranmeg2356@gmail.com` |
+| `CLIENT_URL` | `https://your-project.vercel.app` |
 
----
+> **Note**: After first deploy, you'll have a URL like `toufikul-portfolio.vercel.app`. Set `CLIENT_URL` to that URL and redeploy.
 
-## 2. Backend Deployment: Render (or Railway)
+### Step 4: Deploy!
 
-### Option A: Render.com (Recommended)
-1. Push your repository to GitHub.
-2. Sign in to [Render](https://render.com) and click **New +** → **Web Service**.
-3. Connect your repository `codewithToufikul/toufikul-portfolio2.0`.
-4. Configure the service settings:
-   - **Name**: `toufikul-portfolio-api`
-   - **Root Directory**: `server`
-   - **Environment**: `Node`
-   - **Build Command**: `npm install`
-   - **Start Command**: `npm start`
-5. Under **Environment Variables**, add:
-   ```
-   NODE_ENV=production
-   PORT=5001
-   MONGODB_URI=mongodb+srv://toufikul_admin:<PASSWORD>@cluster0.xxxxx.mongodb.net/toufikul-portfolio?retryWrites=true&w=majority
-   CLIENT_URL=https://toufikuls-portfolio.vercel.app
-   SMTP_HOST=smtp.gmail.com
-   SMTP_PORT=587
-   SMTP_USER=imranmeg2356@gmail.com
-   SMTP_PASS=your_google_app_password
-   NOTIFICATION_EMAIL=imranmeg2356@gmail.com
-   ```
-6. Click **Deploy Web Service**.
-7. Note down your backend URL: `https://toufikul-portfolio-api.onrender.com`.
+Click **Deploy** — done! Both the React frontend and the Express API will be live under one domain.
+
+- Frontend: `https://your-project.vercel.app`
+- API: `https://your-project.vercel.app/api/contact`
+- Health: `https://your-project.vercel.app/api/health`
 
 ---
 
-## 3. Frontend Deployment: Vercel (or Netlify)
+## 🗄️ MongoDB Atlas (Free Tier)
 
-### Option A: Vercel (Recommended)
-1. Sign in to [Vercel](https://vercel.com) and click **Add New...** → **Project**.
-2. Import your GitHub repository.
-3. Configure the build settings:
-   - **Framework Preset**: `Vite`
-   - **Root Directory**: Click Edit and select `client`
-   - **Build Command**: `npm run build`
-   - **Output Directory**: `dist`
-4. Under **Rewrites / Proxy** (to route `/api` requests to Render), ensure `client/vite.config.js` or create a `vercel.json` inside `/client`:
-   ```json
-   {
-     "rewrites": [
-       {
-         "source": "/api/:path*",
-         "destination": "https://toufikul-portfolio-api.onrender.com/api/:path*"
-       }
-     ]
-   }
+1. Go to [MongoDB Atlas](https://www.mongodb.com/cloud/atlas) → Create a free **M0 Cluster**
+2. **Database Access** → Create user: `toufikul_admin` with a strong password
+3. **Network Access** → Add `0.0.0.0/0` (Allow from anywhere)
+4. **Connect** → Drivers (Node.js) → Copy the connection string:
    ```
-5. Click **Deploy**.
+   mongodb+srv://toufikul_admin:<PASSWORD>@cluster0.xxxxx.mongodb.net/portfolio?retryWrites=true&w=majority
+   ```
+5. Add this as `MONGODB_URI` in Vercel environment variables
 
 ---
 
-## 4. Verification & Testing
+## 🔧 Local Development
 
-Once both services are deployed:
-1. Visit your frontend URL: `https://toufikuls-portfolio.vercel.app`.
-2. Verify the boot sequence and live Dhaka clock.
-3. Submit a test message through the `POST /contact` form to verify end-to-end receipt in MongoDB Atlas and inbox delivery.
+```bash
+# Install all dependencies (run once)
+npm run install:all
+
+# Start both server + client
+npm run dev
+
+# Or start individually:
+npm run dev:client   # http://localhost:3000
+npm run dev:server   # http://localhost:5001
+```
+
+---
+
+## 📨 Google App Password Setup (SMTP)
+
+The contact form uses Gmail SMTP. To set up:
+
+1. Enable **2-Factor Authentication** on your Google account
+2. Go to **Google Account → Security → 2-Step Verification → App passwords**
+3. Create an app password for "Mail"
+4. Use the 16-character password **without spaces** as `SMTP_PASS`
+
+---
+
+## ✅ Verification After Deployment
+
+1. Visit your Vercel URL
+2. Check the boot sequence animation
+3. Submit a test contact form message
+4. Verify email received at `imranmeg2356@gmail.com`
+5. Check health endpoint: `/api/health`
