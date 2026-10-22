@@ -1,0 +1,438 @@
+<title>toufikul.dev status</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Familjen+Grotesk:wght@500;700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500&display=swap">
+<style>
+/* Layout: ops-console. Sticky status bar, summary tiles first, then a 12-col panel grid (latency + request log, services, deployments, incidents, activity, contact). Dark-first. */
+:root {
+  --bg: #0d1216;
+  --surface: #131a20;
+  --surface-2: #1a232b;
+  --line: #263340;
+  --fg: #e4eaee;
+  --muted: #8a9aa7;
+  --accent: #5cc8e6;
+  --warn: #f0a83c;
+  --ok: #5fd38d;
+  --crit: #f06a5e;
+  --font-display: "Familjen Grotesk", "Segoe UI", system-ui, sans-serif;
+  --font-body: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  color-scheme: dark;
+}
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) {
+    --bg: #eef2f4; --surface: #ffffff; --surface-2: #e6ecef; --line: #cbd6dc;
+    --fg: #11191f; --muted: #53636f; --accent: #0b7c99; --warn: #a86500;
+    --ok: #1b7f4b; --crit: #b3382d; color-scheme: light;
+  }
+}
+:root[data-theme="light"] {
+  --bg: #eef2f4; --surface: #ffffff; --surface-2: #e6ecef; --line: #cbd6dc;
+  --fg: #11191f; --muted: #53636f; --accent: #0b7c99; --warn: #a86500;
+  --ok: #1b7f4b; --crit: #b3382d; color-scheme: light;
+}
+
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--fg);
+  font: 15px/1.55 var(--font-body);
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 0 48px;
+}
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--surface); }
+a { color: var(--accent); }
+.mono { font-family: var(--font-mono); }
+.wrap { max-width: 1180px; margin: 0 auto; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* status bar */
+.bar { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: var(--surface); border-bottom: 1px solid var(--line);
+  margin-inline: calc(-1 * max(16px, env(safe-area-inset-left, 0px))); padding-inline: max(16px, env(safe-area-inset-left, 0px)); }
+.bar-in { max-width: 1180px; margin: 0 auto; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 20px; padding-block: 10px; }
+.brand { font: 500 14px var(--font-mono); letter-spacing: .02em; margin-right: auto; }
+.brand b { color: var(--accent); font-weight: 500; }
+.pill { display: inline-flex; align-items: center; gap: 8px; font: 500 12px var(--font-mono); padding: 4px 10px; border: 1px solid var(--line); background: var(--surface-2); white-space: nowrap; }
+.dot { width: 8px; height: 8px; border-radius: 50%; background: var(--ok); display: inline-block; flex: none; }
+.dot.live { animation: pulse 2s ease-out infinite; }
+@keyframes pulse { 0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--ok) 60%, transparent); } 100% { box-shadow: 0 0 0 8px transparent; } }
+@media (prefers-reduced-motion: reduce) { .dot.live { animation: none; } }
+.clock { color: var(--muted); font: 12px var(--font-mono); }
+
+/* intro */
+.intro { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); gap: 24px 48px; padding-block: 40px 28px; align-items: end; }
+.eyebrow { font: 500 12px var(--font-mono); letter-spacing: .12em; text-transform: uppercase; color: var(--accent); }
+h1 { font: 700 clamp(2.4rem, 6vw, 4.2rem)/.98 var(--font-display); letter-spacing: -.02em; margin: 10px 0 14px; text-wrap: balance; }
+.lede { color: var(--muted); max-width: 52ch; margin: 0 0 20px; }
+.cta { display: flex; flex-wrap: wrap; gap: 10px; }
+.btn { font: 500 13px var(--font-mono); padding: 10px 16px; border: 1px solid var(--accent); color: var(--bg); background: var(--accent); text-decoration: none; cursor: pointer; }
+.btn.ghost { background: transparent; color: var(--accent); }
+.btn:hover { filter: brightness(1.1); }
+
+.kpis { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1px; background: var(--line); border: 1px solid var(--line); }
+.kpi { background: var(--surface); padding: 14px 16px; min-width: 0; }
+.kpi small { display: block; font: 12px var(--font-mono); color: var(--muted); text-transform: uppercase; letter-spacing: .08em; }
+.kpi strong { font: 700 28px/1.2 var(--font-display); font-variant-numeric: tabular-nums; }
+.kpi strong span { font-size: 14px; color: var(--muted); font-weight: 500; }
+
+/* panels */
+.grid { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 16px; }
+.panel { background: var(--surface); border: 1px solid var(--line); min-width: 0; display: flex; flex-direction: column; }
+.panel > header { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 12px 16px; border-bottom: 1px solid var(--line); }
+.panel h2 { margin: 0; font: 500 12px var(--font-mono); letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+.tag { font: 11px var(--font-mono); color: var(--muted); }
+.body { padding: 16px; min-width: 0; }
+.s4 { grid-column: span 4; } .s5 { grid-column: span 5; } .s7 { grid-column: span 7; } .s8 { grid-column: span 8; } .s12 { grid-column: span 12; }
+
+canvas { display: block; width: 100%; }
+#chart { height: 230px; }
+
+/* log */
+.log { list-style: none; margin: 0; padding: 12px 16px; font: 12px/1.9 var(--font-mono); overflow: hidden; min-height: 230px; }
+.log li { display: flex; gap: 10px; white-space: nowrap; overflow: hidden; border-bottom: 1px dashed var(--line); }
+.log li:last-child { border: 0; }
+.log .m { color: var(--accent); width: 4.2ch; flex: none; }
+.log .p { overflow: hidden; text-overflow: ellipsis; flex: 1; min-width: 0; }
+.log .c { color: var(--ok); flex: none; }
+.log .t { color: var(--muted); flex: none; width: 5ch; text-align: right; }
+
+/* services */
+.svc { list-style: none; margin: 0; padding: 0; }
+.svc li { display: grid; grid-template-columns: 10px minmax(0, 1fr) 84px 52px; align-items: center; gap: 12px; padding: 11px 16px; border-bottom: 1px solid var(--line); }
+.svc li:last-child { border: 0; }
+.svc b { font-weight: 500; display: block; line-height: 1.25; }
+.svc em { font-style: normal; font-size: 12px; color: var(--muted); }
+.svc canvas { height: 26px; }
+.svc .ms { font: 12px var(--font-mono); text-align: right; font-variant-numeric: tabular-nums; }
+.svc .dot.warn { background: var(--warn); }
+
+/* deployments */
+details { border-bottom: 1px solid var(--line); }
+details:last-of-type { border: 0; }
+summary { list-style: none; cursor: pointer; display: grid; grid-template-columns: minmax(0, 1fr) auto 16px; gap: 6px 14px; align-items: center; padding: 14px 16px; }
+summary::-webkit-details-marker { display: none; }
+summary::after { content: "+"; font: 500 16px var(--font-mono); color: var(--accent); text-align: right; }
+details[open] summary::after { content: "\2212"; }
+summary:hover { background: var(--surface-2); }
+.pname { font: 700 17px var(--font-display); }
+.psub { grid-column: 1; font-size: 13px; color: var(--muted); }
+.kind { font: 11px var(--font-mono); padding: 2px 8px; border: 1px solid var(--line); color: var(--accent); }
+.detail { padding: 0 16px 16px; display: grid; gap: 10px; font-size: 14px; }
+.detail dl { margin: 0; display: grid; grid-template-columns: 90px minmax(0, 1fr); gap: 6px 14px; }
+.detail dt { font: 11px var(--font-mono); color: var(--muted); text-transform: uppercase; letter-spacing: .08em; padding-top: 3px; }
+.detail dd { margin: 0; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { font: 12px var(--font-mono); background: var(--surface-2); padding: 2px 8px; }
+
+/* incidents */
+.inc { list-style: none; margin: 0; padding: 4px 16px 8px; }
+.inc li { display: grid; grid-template-columns: 78px minmax(0, 1fr); gap: 14px; padding: 14px 0; border-bottom: 1px solid var(--line); }
+.inc li:last-child { border: 0; }
+.inc time { font: 12px var(--font-mono); color: var(--muted); padding-top: 2px; }
+.inc b { font-weight: 500; }
+.sev { font: 500 10px var(--font-mono); letter-spacing: .08em; padding: 1px 6px; margin-right: 8px; text-transform: uppercase; }
+.sev.ok { color: var(--ok); border: 1px solid var(--ok); }
+.sev.live { color: var(--warn); border: 1px solid var(--warn); }
+.inc p { margin: 4px 0 0; font-size: 14px; color: var(--muted); }
+
+/* heatmap */
+.heat { display: grid; grid-auto-flow: column; grid-template-rows: repeat(7, 1fr); grid-template-columns: repeat(26, minmax(0, 1fr)); gap: 3px; }
+.heat i { aspect-ratio: 1; background: var(--surface-2); }
+.heat i[data-l="1"] { background: color-mix(in srgb, var(--accent) 25%, var(--surface-2)); }
+.heat i[data-l="2"] { background: color-mix(in srgb, var(--accent) 50%, var(--surface-2)); }
+.heat i[data-l="3"] { background: color-mix(in srgb, var(--accent) 75%, var(--surface-2)); }
+.heat i[data-l="4"] { background: var(--accent); }
+.legend { display: flex; align-items: center; gap: 4px; font: 11px var(--font-mono); color: var(--muted); margin-top: 12px; justify-content: flex-end; }
+.legend i { width: 11px; height: 11px; display: inline-block; }
+
+/* contact */
+.contact { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 24px 40px; }
+.req { font: 13px/1.7 var(--font-mono); background: var(--surface-2); padding: 16px; margin: 0; overflow-x: auto; }
+.req .k { color: var(--accent); } .req .s { color: var(--ok); } .req .c { color: var(--muted); }
+form { display: grid; gap: 12px; }
+label { display: grid; gap: 4px; font: 12px var(--font-mono); color: var(--muted); }
+input, textarea { font: 15px var(--font-body); color: var(--fg); background: var(--bg); border: 1px solid var(--line); padding: 9px 11px; width: 100%; }
+textarea { min-height: 84px; resize: vertical; }
+.resp { font: 12px/1.7 var(--font-mono); padding: 12px 14px; border: 1px dashed var(--ok); color: var(--ok); margin: 0; white-space: pre-wrap; }
+.note { font-size: 13px; color: var(--muted); margin-top: 24px; text-align: center; }
+
+@media (max-width: 900px) {
+  .intro { grid-template-columns: minmax(0, 1fr); }
+  .s4, .s5, .s7, .s8 { grid-column: span 12; }
+  .contact { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 480px) {
+  .svc li { grid-template-columns: 10px minmax(0, 1fr) 56px 46px; gap: 8px; }
+  .detail dl { grid-template-columns: minmax(0, 1fr); gap: 2px; }
+  .detail dd { margin-bottom: 8px; }
+  .inc li { grid-template-columns: minmax(0, 1fr); gap: 4px; }
+}
+</style>
+
+<div class="bar"><div class="bar-in">
+  <div class="brand"><b>toufikul</b>.dev / status</div>
+  <span class="pill"><span class="dot live"></span><span id="allok">All systems operational</span></span>
+  <span class="pill"><span class="dot" style="background:var(--warn)"></span>Open to work</span>
+  <span class="clock" id="clock">Dhaka --:--:--</span>
+</div></div>
+
+<div class="wrap">
+  <section class="intro">
+    <div>
+      <div class="eyebrow">Full stack developer / Dhaka, BD</div>
+      <h1>Toufikul Islam</h1>
+      <p class="lede">I build MERN stack web apps and React Native mobile apps for clients, working remotely. This page is a status board for my work: the numbers move, the projects are real, and every incident is a job I finished.</p>
+      <div class="cta">
+        <a class="btn" href="#deployments">View deployments</a>
+        <a class="btn ghost" href="#contact">POST /contact</a>
+      </div>
+    </div>
+    <div class="kpis">
+      <div class="kpi"><small>Services</small><strong id="kSvc">6<span>/6 healthy</span></strong></div>
+      <div class="kpi"><small>p95 latency</small><strong id="kLat">--<span> ms</span></strong></div>
+      <div class="kpi"><small>Deployments</small><strong>3<span> shown</span></strong></div>
+      <div class="kpi"><small>Shipping since</small><strong>2024</strong></div>
+    </div>
+  </section>
+
+  <div class="grid">
+    <section class="panel s8">
+      <header><h2>Response time, p95</h2><span class="tag">simulated / last 60s</span></header>
+      <div class="body"><canvas id="chart" aria-label="Live line chart of simulated p95 response time in milliseconds"></canvas></div>
+    </section>
+    <section class="panel s4">
+      <header><h2>Request log</h2><span class="tag">simulated</span></header>
+      <ul class="log" id="log"></ul>
+    </section>
+
+    <section class="panel s5">
+      <header><h2>Services</h2><span class="tag">my stack</span></header>
+      <ul class="svc" id="svc"></ul>
+    </section>
+    <section class="panel s7" id="deployments">
+      <header><h2>Deployments</h2><span class="tag">tap a row</span></header>
+      <div>
+        <details open>
+          <summary><span class="pname">FlyBook</span><span class="kind">mobile</span><span class="psub">React Native app for iOS and Android</span></summary>
+          <div class="detail"><dl>
+            <dt>Problem</dt><dd>Sample text: what the app solves and for whom.</dd>
+            <dt>Approach</dt><dd>One React Native codebase for both platforms, with the layout tuned per platform.</dd>
+            <dt>Stack</dt><dd><div class="chips"><span class="chip">React Native</span><span class="chip">Node.js</span><span class="chip">MongoDB</span></div></dd>
+          </dl></div>
+        </details>
+        <details>
+          <summary><span class="pname">Hidayah</span><span class="kind">web</span><span class="psub">AI-powered Islamic guidance web app</span></summary>
+          <div class="detail"><dl>
+            <dt>Problem</dt><dd>Sample text: people want quick, readable guidance without digging through long sources.</dd>
+            <dt>Approach</dt><dd>A conversational web interface backed by an AI service and an API of my own.</dd>
+            <dt>Stack</dt><dd><div class="chips"><span class="chip">React</span><span class="chip">Express</span><span class="chip">MongoDB</span></div></dd>
+          </dl></div>
+        </details>
+        <details>
+          <summary><span class="pname">Tutor Platform</span><span class="kind">web</span><span class="psub">Tutor marketplace for Bangladesh</span></summary>
+          <div class="detail"><dl>
+            <dt>Problem</dt><dd>Parents and students struggle to find trusted tutors nearby.</dd>
+            <dt>Approach</dt><dd>A marketplace that connects tutors with parents and students, designed for mobile-first use.</dd>
+            <dt>Stack</dt><dd><div class="chips"><span class="chip">React</span><span class="chip">Tailwind CSS</span><span class="chip">Node.js</span></div></dd>
+          </dl></div>
+        </details>
+      </div>
+    </section>
+
+    <section class="panel s5">
+      <header><h2>Incident history</h2><span class="tag">newest first</span></header>
+      <ul class="inc">
+        <li><time>Now</time><div><span class="sev live">Open</span><b>Looking for the next team</b><p>Available for full stack and backend roles, remote or in Dhaka.</p></div></li>
+        <li><time>Sep 2026</time><div><span class="sev ok">Resolved</span><b>NexaTech engagement completed</b><p>MERN stack developer on remote, project-based work from 2024.</p></div></li>
+        <li><time>2023 - 2026</time><div><span class="sev ok">Resolved</span><b>Diploma in Engineering, CST</b><p>Computer Science and Technology at Naogaon Polytechnic Institute.</p></div></li>
+      </ul>
+    </section>
+    <section class="panel s7">
+      <header><h2>Commit activity</h2><span class="tag">sample data / 26 weeks</span></header>
+      <div class="body">
+        <div class="heat" id="heat" role="img" aria-label="Sample commit activity heatmap for the last 26 weeks"></div>
+        <div class="legend">less <i style="background:var(--surface-2)"></i><i style="background:color-mix(in srgb,var(--accent) 25%,var(--surface-2))"></i><i style="background:color-mix(in srgb,var(--accent) 50%,var(--surface-2))"></i><i style="background:color-mix(in srgb,var(--accent) 75%,var(--surface-2))"></i><i style="background:var(--accent)"></i> more</div>
+      </div>
+    </section>
+
+    <section class="panel s12" id="contact">
+      <header><h2>POST /contact</h2><span class="tag">demo form</span></header>
+      <div class="body contact">
+        <pre class="req"><span class="c"># request</span>
+<span class="k">POST</span> /contact
+<span class="k">Content-Type:</span> application/json
+
+{
+  <span class="s">"name"</span>:    <span class="c">// who you are</span>,
+  <span class="s">"email"</span>:   <span class="c">// where I reply</span>,
+  <span class="s">"message"</span>: <span class="c">// what you need built</span>
+}</pre>
+        <div>
+          <form id="form">
+            <label for="fn">name<input id="fn" name="name" autocomplete="name" required></label>
+            <label for="fe">email<input id="fe" name="email" type="email" autocomplete="email" required></label>
+            <label for="fm">message<textarea id="fm" name="message" required></textarea></label>
+            <div><button class="btn" type="submit">Send request</button></div>
+          </form>
+          <pre class="resp" id="resp" hidden></pre>
+        </div>
+      </div>
+    </section>
+  </div>
+  <p class="note">Latency, request log and commit activity are simulated for this demo. In the real build the chart reads from your own Express endpoint and the form posts to it.</p>
+</div>
+
+<script>
+(function () {
+  var css = function (n) { return getComputedStyle(document.documentElement).getPropertyValue(n).trim(); };
+  var rand = function (a, b) { return a + Math.random() * (b - a); };
+  var clamp = function (v, a, b) { return Math.max(a, Math.min(b, v)); };
+
+  function fit(c) {
+    var r = c.getBoundingClientRect(), d = window.devicePixelRatio || 1;
+    var w = Math.round(r.width * d), h = Math.round(r.height * d);
+    if (c.width !== w || c.height !== h) { c.width = w; c.height = h; }
+    var x = c.getContext("2d"); x.setTransform(d, 0, 0, d, 0, 0);
+    return { x: x, w: r.width, h: r.height };
+  }
+
+  /* ---------- clock ---------- */
+  var clock = document.getElementById("clock");
+  function tickClock() {
+    try {
+      clock.textContent = "Dhaka " + new Date().toLocaleTimeString("en-GB", { timeZone: "Asia/Dhaka", hour12: false });
+    } catch (e) { clock.textContent = "Dhaka"; }
+  }
+  tickClock(); setInterval(tickClock, 1000);
+
+  /* ---------- series ---------- */
+  var N = 60;
+  var main = []; var v = 38;
+  for (var i = 0; i < N; i++) { v = clamp(v + rand(-4, 4), 24, 62); main.push(v); }
+
+  var services = [
+    { n: "React", r: "UI layer", b: 14 },
+    { n: "Node.js", r: "Runtime", b: 22 },
+    { n: "Express", r: "HTTP layer", b: 18 },
+    { n: "MongoDB", r: "Data store", b: 31 },
+    { n: "React Native", r: "Mobile", b: 26 },
+    { n: "Tailwind CSS", r: "Styling", b: 9 }
+  ];
+  var svcEl = document.getElementById("svc");
+  services.forEach(function (s) {
+    s.d = []; for (var i = 0; i < 30; i++) s.d.push(s.b + rand(-3, 3));
+    var li = document.createElement("li");
+    li.innerHTML = '<span class="dot"></span><span><b>' + s.n + '</b><em>' + s.r + '</em></span><canvas></canvas><span class="ms mono"></span>';
+    svcEl.appendChild(li); s.li = li;
+  });
+
+  /* ---------- drawing ---------- */
+  function drawMain() {
+    var f = fit(document.getElementById("chart")), x = f.x, W = f.w, H = f.h;
+    var L = 36, R = 10, T = 8, B = 20, pw = W - L - R, ph = H - T - B, max = 80;
+    var line = css("--line"), muted = css("--muted"), acc = css("--accent");
+    x.clearRect(0, 0, W, H);
+    x.font = "11px " + css("--font-mono"); x.textBaseline = "middle"; x.textAlign = "right";
+    for (var g = 0; g <= 4; g++) {
+      var val = g * 20, y = T + ph - (val / max) * ph;
+      x.strokeStyle = line; x.lineWidth = 1; x.beginPath(); x.moveTo(L, y + .5); x.lineTo(W - R, y + .5); x.stroke();
+      x.fillStyle = muted; x.fillText(val, L - 8, y);
+    }
+    x.textBaseline = "alphabetic"; x.textAlign = "left"; x.fillStyle = muted; x.fillText("-60s", L, H - 4);
+    x.textAlign = "right"; x.fillText("now", W - R, H - 4);
+    var px = function (i) { return L + (i / (N - 1)) * pw; };
+    var py = function (val) { return T + ph - (val / max) * ph; };
+    var grad = x.createLinearGradient(0, T, 0, T + ph);
+    grad.addColorStop(0, acc + "55"); grad.addColorStop(1, acc + "00");
+    x.beginPath(); x.moveTo(px(0), py(main[0]));
+    main.forEach(function (d, i) { x.lineTo(px(i), py(d)); });
+    x.lineTo(px(N - 1), T + ph); x.lineTo(px(0), T + ph); x.closePath();
+    x.fillStyle = hexAlpha(acc, grad); x.fill();
+    x.beginPath(); main.forEach(function (d, i) { i ? x.lineTo(px(i), py(d)) : x.moveTo(px(i), py(d)); });
+    x.strokeStyle = acc; x.lineWidth = 2; x.lineJoin = "round"; x.stroke();
+    var last = main[N - 1];
+    x.beginPath(); x.arc(px(N - 1), py(last), 4, 0, 6.283); x.fillStyle = acc; x.fill();
+  }
+  /* accent may be a hex; use a translucent fill that works in both themes */
+  function hexAlpha(acc) {
+    var m = /^#([0-9a-f]{6})$/i.exec(acc);
+    if (!m) return acc;
+    var n = parseInt(m[1], 16);
+    return "rgba(" + (n >> 16) + "," + ((n >> 8) & 255) + "," + (n & 255) + ",0.14)";
+  }
+
+  function spark(c, d, warn) {
+    var f = fit(c), x = f.x, W = f.w, H = f.h, lo = Math.min.apply(null, d) - 2, hi = Math.max.apply(null, d) + 2;
+    x.clearRect(0, 0, W, H);
+    var col = css(warn ? "--warn" : "--accent");
+    x.beginPath();
+    d.forEach(function (val, i) {
+      var px = 2 + (i / (d.length - 1)) * (W - 8), py = H - 3 - ((val - lo) / (hi - lo)) * (H - 6);
+      i ? x.lineTo(px, py) : x.moveTo(px, py);
+    });
+    x.strokeStyle = col; x.lineWidth = 1.5; x.lineJoin = "round"; x.stroke();
+    var lv = d[d.length - 1], ex = W - 6, ey = H - 3 - ((lv - lo) / (hi - lo)) * (H - 6);
+    x.beginPath(); x.arc(ex, ey, 2.5, 0, 6.283); x.fillStyle = col; x.fill();
+  }
+
+  function render() {
+    drawMain();
+    var healthy = 0;
+    services.forEach(function (s) {
+      var last = s.d[s.d.length - 1], warn = last > 60;
+      if (!warn) healthy++;
+      spark(s.li.querySelector("canvas"), s.d, warn);
+      s.li.querySelector(".ms").textContent = Math.round(last) + "ms";
+      s.li.querySelector(".dot").className = "dot" + (warn ? " warn" : "");
+    });
+    document.getElementById("kSvc").innerHTML = healthy + "<span>/" + services.length + " healthy</span>";
+    document.getElementById("kLat").innerHTML = Math.round(main[N - 1]) + "<span> ms</span>";
+    document.getElementById("allok").textContent = healthy === services.length ? "All systems operational" : "Partial degradation";
+  }
+
+  /* ---------- request log ---------- */
+  var routes = [["GET", "/api/projects", 200], ["GET", "/api/skills", 200], ["GET", "/api/about", 200], ["POST", "/contact", 202], ["GET", "/api/experience", 200], ["GET", "/health", 200]];
+  var logEl = document.getElementById("log");
+  function addLog() {
+    var r = routes[Math.floor(Math.random() * routes.length)];
+    var li = document.createElement("li");
+    li.innerHTML = '<span class="m">' + r[0] + '</span><span class="p">' + r[1] + '</span><span class="c">' + r[2] + '</span><span class="t">' + Math.round(rand(8, 46)) + 'ms</span>';
+    logEl.insertBefore(li, logEl.firstChild);
+    while (logEl.children.length > 8) logEl.removeChild(logEl.lastChild);
+  }
+  for (var k = 0; k < 8; k++) addLog();
+
+  /* ---------- tick ---------- */
+  function tick() {
+    var spike = Math.random() < 0.05 ? rand(14, 26) : 0;
+    main.push(clamp(main[N - 1] + rand(-5, 5) + spike - (main[N - 1] > 55 ? 4 : 0), 20, 76)); main.shift();
+    services.forEach(function (s) { s.d.push(clamp(s.b + rand(-4, 5), 4, 58)); s.d.shift(); });
+    render();
+  }
+  render(); setInterval(tick, 1000); setInterval(addLog, 1400);
+  window.addEventListener("resize", render);
+  if (window.matchMedia) {
+    var mq = window.matchMedia("(prefers-color-scheme: dark)");
+    if (mq.addEventListener) mq.addEventListener("change", render);
+  }
+
+  /* ---------- heatmap (fixed sample pattern) ---------- */
+  var heat = document.getElementById("heat"), seed = 11;
+  function r2() { seed = (seed * 16807) % 2147483647; return seed / 2147483647; }
+  for (var w = 0; w < 26; w++) for (var d = 0; d < 7; d++) {
+    var base = d === 0 || d === 6 ? 0.35 : 0.8, boost = 0.4 + 0.6 * Math.sin(w / 4.2) * Math.sin(w / 4.2);
+    var p = r2() * base * boost * 1.6, lvl = p < 0.18 ? 0 : p < 0.38 ? 1 : p < 0.58 ? 2 : p < 0.8 ? 3 : 4;
+    var c = document.createElement("i"); c.dataset.l = lvl; heat.appendChild(c);
+  }
+
+  /* ---------- contact form (demo only) ---------- */
+  document.getElementById("form").addEventListener("submit", function (e) {
+    e.preventDefault();
+    var n = document.getElementById("fn").value.trim() || "you";
+    var out = document.getElementById("resp");
+    out.hidden = false;
+    out.textContent = "HTTP/1.1 202 Accepted\n{ \"ok\": true, \"demo\": true, \"note\": \"Nothing was sent. Thanks, " + n.replace(/[<>"]/g, "") + ". Connect this form to your Express route to receive real messages.\" }";
+  });
+})();
+</script>

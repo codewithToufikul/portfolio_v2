@@ -1,0 +1,185 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bg: #0d1216;
+  --surface: #131a20;
+  --surface-2: #1a232b;
+  --line: #263340;
+  --fg: #e4eaee;
+  --muted: #8a9aa7;
+  --accent: #5cc8e6;
+  --warn: #f0a83c;
+  --ok: #5fd38d;
+  --crit: #f06a5e;
+  
+  --font-display: "Familjen Grotesk", system-ui, sans-serif;
+  --font-body: "IBM Plex Sans", system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+  
+  --scanline-opacity: 0.15;
+  --crt-curvature: 0px;
+  color-scheme: dark;
+}
+
+[data-theme="light"] {
+  --bg: #eef2f4;
+  --surface: #ffffff;
+  --surface-2: #e6ecef;
+  --line: #cbd6dc;
+  --fg: #11191f;
+  --muted: #53636f;
+  --accent: #0b7c99;
+  --warn: #a86500;
+  --ok: #1b7f4b;
+  --crit: #b3382d;
+  color-scheme: light;
+}
+
+/* Density tokens */
+[data-density="compact"] {
+  --space-unit: 0.75rem;
+  --btn-py: 0.4rem;
+  --btn-px: 0.75rem;
+}
+
+[data-density="comfortable"] {
+  --space-unit: 1rem;
+  --btn-py: 0.6rem;
+  --btn-px: 1rem;
+}
+
+/* Base resets */
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+  scroll-padding-top: 60px;
+}
+
+body {
+  background-color: var(--bg);
+  color: var(--fg);
+  font-family: var(--font-body);
+  font-size: 15px;
+  line-height: 1.55;
+  min-height: 100vh;
+  overflow-x: hidden;
+  transition: background-color 0.25s ease, color 0.25s ease;
+}
+
+@media (pointer: fine) {
+  body {
+    cursor: default;
+  }
+  a, button, input, textarea, select, summary, [role="button"] {
+    cursor: pointer;
+  }
+}
+
+/* Safe area padding for notches and mobile docks */
+body {
+  padding-left: max(0px, env(safe-area-inset-left));
+  padding-right: max(0px, env(safe-area-inset-right));
+}
+
+a {
+  color: var(--accent);
+  transition: color 0.15s ease;
+}
+
+a:hover {
+  filter: brightness(1.15);
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* Scanline and CRT overlay */
+.scanlines {
+  background: linear-gradient(
+    rgba(18, 16, 16, 0) 50%, 
+    rgba(0, 0, 0, 0.25) 50%
+  ), linear-gradient(
+    90deg,
+    rgba(255, 0, 0, 0.03),
+    rgba(0, 255, 0, 0.01),
+    rgba(0, 0, 255, 0.03)
+  );
+  background-size: 100% 3px, 6px 100%;
+  pointer-events: none;
+}
+
+/* Grid backdrop */
+.grid-pattern {
+  background-size: 24px 24px;
+  background-image: 
+    linear-gradient(to right, var(--line) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--line) 1px, transparent 1px);
+  opacity: 0.35;
+}
+
+/* Status radar scan animation */
+@keyframes radarSweep {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.radar-sweep {
+  animation: radarSweep 4s linear infinite;
+}
+
+/* Status operational pulse */
+@keyframes pulseDot {
+  0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--ok) 65%, transparent); }
+  100% { box-shadow: 0 0 0 10px transparent; }
+}
+
+.pulse-dot {
+  animation: pulseDot 2s ease-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, ::before, ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+  .radar-sweep, .pulse-dot {
+    animation: none !important;
+  }
+}
+
+/* Custom technical scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg);
+  border-left: 1px solid var(--line);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--line);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--accent);
+}
+
+/* Terminal scroll styling */
+.terminal-scroll::-webkit-scrollbar {
+  width: 4px;
+}
+.terminal-scroll::-webkit-scrollbar-thumb {
+  background: var(--accent);
+  opacity: 0.5;
+}
